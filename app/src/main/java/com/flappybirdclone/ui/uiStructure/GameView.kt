@@ -1,4 +1,4 @@
-class GameView(context: Context, attrs: AttributeSets) : View(context, attrs) {
+/*class GameView(context: Context, attrs: AttributeSets) : View(context, attrs) {
 
     //Barvy pro vykreslování (pouze prozatím)
     private val playerPaint = Paint().apply { color = Color.BLUE }
@@ -111,4 +111,4 @@ class GameView(context: Context, attrs: AttributeSets) : View(context, attrs) {
     private fun randomYPosition(): Float {
         return (100.height - 100).random().toFloat() //náhodná výška pro nové překážky
     }
-}
+}*/
