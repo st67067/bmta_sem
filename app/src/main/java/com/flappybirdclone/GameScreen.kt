@@ -25,86 +25,73 @@ import kotlin.random.Random
 
 @Composable
 fun GameScreen() {
-
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-
-    // Výška bird
     val birdSize = 150.dp
-
-    // Stav pro vertikální pozici bird
-    var birdOffsetY by remember { mutableStateOf(screenHeight / 2 - birdSize / 2) }
     val gravity = 6.dp // Síla gravitace
     val jumpHeight = 160.dp // Výška skoku
+    val pipeWidth = 100.dp
+
+    var birdOffsetY by remember { mutableStateOf(screenHeight / 2 - birdSize / 2) }
 
     // Stav pro pozice pipes
     var pipesList by remember { mutableStateOf(mutableListOf<Pipe>()) }
     var isGameOver by remember { mutableStateOf(false) }
+    var isRestarting by remember {mutableStateOf(false) }
+    var isCollisionActive by remember { mutableStateOf(false)}
 
+    @Composable
     fun restartGame() {
-        birdOffsetY = screenHeight / 2 - birdSize / 2
+        birdOffsetY = screenHeight / 2 //výšku kde začíná postava jsem dal trochu výš
         pipesList = mutableListOf()
+        isCollisionActive = false
         isGameOver = false
+        isRestarting = false
+
+        //Aktivace po resetu
+        LaunchedEffect(Unit) {
+            delay(2000)
+            isCollisionActive = true
+
+        }
+    }
+// kontrola kolizí
+    fun checkCollision(): Boolean {
+        val birdRect = Rect(x = 50.dp, y = birdOffsetY, width = birdSize, height = birdSize)
+        return pipesList.any { pipe ->
+            val upperPipeRect = Rect(pipe.offsetX, 0.dp, pipeWidth, pipe.gapOffsetY)
+            val lowerPipeRect = Rect(pipe.offsetX, pipe.gapOffsetY + 150.dp, pipeWidth, screenHeight)
+            birdRect.intersects(upperPipeRect) || birdRect.intersects(lowerPipeRect)
+        }
     }
 
-    // Spuštění pohybu vlivem gravitace
+    //spustí restart pokud je aktivní
+    if (isRestarting) {
+        restartGame()
+    }
+
+    //logika hry
     LaunchedEffect(Unit) {
-        val pipeWidth = 400.dp // Šířka pipes
-        while (true) {
-            delay(16) // ~60 fps
+        while (!isGameOver) {
+            delay(16)
             birdOffsetY += gravity
-            //if (birdOffsetY > screenHeight - birdSize) birdOffsetY = screenHeight - birdSize
-            //if (birdOffsetY < 0.dp) birdOffsetY = 0.dp
+            birdOffsetY = birdOffsetY.coerceIn(0.dp, screenHeight - birdSize)
 
-            // Posun pipes a odstranění těch mimo obrazovku
-            pipesList = pipesList.map { it.copy(offsetX = it.offsetX - 5.dp) }
-                .filter { it.offsetX > - pipeWidth }.toMutableList()
+            pipesList = pipesList
+                .map { it.copy(offsetX = it.offsetX -5.dp)}
+                .filter {it.offsetX > -pipeWidth }
+                .toMutableList()
 
-            // Přidání nového pipes
             if (pipesList.isEmpty() || pipesList.last().offsetX < screenWidth - 300.dp) {
                 pipesList = (pipesList + Pipe(
                     offsetX = screenWidth,
-                    gapOffsetY = Random.nextInt((screenHeight.value * 0.2).toInt(), (screenHeight.value * 0.8).toInt()).dp
-                )).toMutableList()
+                    gapOffsetY = Random.nextInt(
+                        (screenHeight.value * 0.2).toInt(),
+                        (screenHeight.value * 0.8).toInt()).dp)).toMutableList()
             }
-
-            // Detekce kolizí
-            val birdRect = Rect(
-                x = 0.dp,
-                y = birdOffsetY,
-                width = birdSize,
-                height = birdSize
-            )
-
-            for (pipe in pipesList) {
-                val pipeWidth = 100.dp
-                val upperPipeRect = Rect(
-                    x = pipe.offsetX,
-                    y = 0.dp,
-                    width = pipeWidth,
-                    height = pipe.gapOffsetY
-                )
-
-                val lowerPipeRect = Rect(
-                    x = pipe.offsetX,
-                    y = pipe.gapOffsetY + 150.dp,
-                    width = pipeWidth,
-                    height = screenHeight
-                )
-
-                /* TODO upravit kolize */
-                /*if (birdRect.intersects(upperPipeRect) || birdRect.intersects(lowerPipeRect)) {
-                    isGameOver = true
-                    break
-                }*/
+            if (isCollisionActive && checkCollision()) {
+                isGameOver = true
             }
-
-            // Omezení, aby bird nespadl mimo obrazovku
-            /*if (birdOffsetY > screenHeight - birdSize) {
-                birdOffsetY = screenHeight - birdSize
-            } else if (birdOffsetY < 0.dp) {
-                birdOffsetY = 0.dp
-            }*/
         }
     }
 
@@ -112,13 +99,9 @@ fun GameScreen() {
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = {
-                        birdOffsetY -= jumpHeight // Bird vyskočí nahoru
+                detectTapGestures(onTap = { birdOffsetY -= jumpHeight })
                         //if (birdOffsetY < 0.dp) birdOffsetY = 0.dp // Zamezení, aby nevyskočil mimo obrazovku
                     }
-                )
-            }
     ) {
         // Pozadí
         Image(
@@ -152,7 +135,7 @@ fun GameScreen() {
                     .background(Color(0x88000000)), // Poloprůhledné pozadí
                 contentAlignment = Alignment.Center
             ) {
-                Button(onClick = { restartGame() }) {
+                Button(onClick = { isRestarting = true }) {
                     Text("Game Over - Restart")
                 }
             }
